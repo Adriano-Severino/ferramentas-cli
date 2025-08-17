@@ -1,0 +1,11 @@
+# Rust
+/target/
+**/*.pbc
+**/*.il
+**/*.csproj
+**/*.cs
+
+# Editor/OS
+.vscode/
+.DS_Store
+Thumbs.db

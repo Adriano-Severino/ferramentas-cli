@@ -15,7 +15,11 @@ struct Cli {
     #[arg(long = "ajuda", action = clap::ArgAction::SetTrue)]
     ajuda: bool,
     /// Mostra versão da CLI e tenta detectar a versão do compilador
+<<<<<<< HEAD
     #[arg(long = "versao", action = clap::ArgAction::SetTrue)]
+=======
+    #[arg(long = "versao", short = 'V', action = clap::ArgAction::SetTrue)]
+>>>>>>> 6e0e260883ae8f76d2140ddf3a9af5fcef0f64f3
     versao: bool,
 
     #[command(subcommand)]
