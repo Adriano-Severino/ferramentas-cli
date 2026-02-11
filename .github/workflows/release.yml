@@ -1,0 +1,208 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Versao sem prefixo v (opcional)"
+        required: false
+        type: string
+      publish:
+        description: "Publicar release no GitHub"
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+  id-token: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  meta:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.vars.outputs.version }}
+      tag: ${{ steps.vars.outputs.tag }}
+      publish: ${{ steps.vars.outputs.publish }}
+      cargo_version: ${{ steps.vars.outputs.cargo_version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolver versao
+        id: vars
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo_version="$(awk -F '"' '/^version = /{print $2; exit}' Cargo.toml)"
+          if [[ -z "$cargo_version" ]]; then
+            echo "Falha ao detectar versao no Cargo.toml" >&2
+            exit 1
+          fi
+
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            tag="${GITHUB_REF_NAME}"
+            version="${tag#v}"
+            publish="true"
+          else
+            input_version="${{ github.event.inputs.version }}"
+            if [[ -z "$input_version" ]]; then
+              input_version="$cargo_version"
+            fi
+            version="$input_version"
+            tag="v${version}"
+            publish="${{ github.event.inputs.publish }}"
+          fi
+
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Versao invalida: '$version'. Use formato semver (ex: 0.1.0)." >&2
+            exit 1
+          fi
+          if [[ "$version" != "$cargo_version" ]]; then
+            echo "Versao divergente. Cargo.toml=$cargo_version, release=$version." >&2
+            echo "Atualize Cargo.toml antes de publicar." >&2
+            exit 1
+          fi
+          if [[ "$tag" != "v${version}" ]]; then
+            echo "Tag invalida: esperado v${version}, recebido ${tag}." >&2
+            exit 1
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "publish=$publish" >> "$GITHUB_OUTPUT"
+          echo "cargo_version=$cargo_version" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: meta
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux-x64
+            binary: pordosol
+          - os: macos-latest
+            platform: macos-x64
+            binary: pordosol
+          - os: windows-latest
+            platform: windows-x64
+            binary: pordosol.exe
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Testes
+        run: cargo test --locked
+
+      - name: Build release
+        run: cargo build --release --locked --bin pordosol
+
+      - name: Empacotar (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          chmod +x ./scripts/release/package.sh
+          ./scripts/release/package.sh \
+            --version "${{ needs.meta.outputs.version }}" \
+            --platform "${{ matrix.platform }}" \
+            --binary "target/release/${{ matrix.binary }}" \
+            --output "dist"
+
+      - name: Empacotar (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          ./scripts/release/package.ps1 `
+            -Version "${{ needs.meta.outputs.version }}" `
+            -Platform "${{ matrix.platform }}" `
+            -Binary "target/release/${{ matrix.binary }}" `
+            -Output "dist"
+
+      - name: Upload pacote
+        uses: actions/upload-artifact@v4
+        with:
+          name: pordosol-${{ matrix.platform }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    needs:
+      - meta
+      - build
+    runs-on: ubuntu-latest
+    if: needs.meta.outputs.publish == 'true'
+
+    steps:
+      - name: Download pacotes
+        uses: actions/download-artifact@v4
+        with:
+          pattern: pordosol-*
+          path: release-artifacts
+          merge-multiple: true
+
+      - name: Consolidar checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          files=(release-artifacts/*.sha256)
+          if [[ ${#files[@]} -gt 0 ]]; then
+            cat "${files[@]}" | sort > release-artifacts/SHA256SUMS.txt
+          else
+            echo "Nenhum checksum encontrado." > release-artifacts/SHA256SUMS.txt
+          fi
+
+      - name: Instalar cosign
+        if: ${{ secrets.COSIGN_PRIVATE_KEY != '' }}
+        uses: sigstore/cosign-installer@v3
+
+      - name: Assinar artefatos
+        if: ${{ secrets.COSIGN_PRIVATE_KEY != '' }}
+        shell: bash
+        env:
+          COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
+          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$COSIGN_PRIVATE_KEY" > cosign.key
+          shopt -s nullglob
+          for file in release-artifacts/*.zip release-artifacts/*.tar.gz; do
+            [[ -f "$file" ]] || continue
+            cosign sign-blob --yes \
+              --key cosign.key \
+              --output-signature "${file}.sig" \
+              "$file"
+          done
+          rm -f cosign.key
+
+      - name: Publicar release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.meta.outputs.tag }}
+          name: Por do Sol CLI v${{ needs.meta.outputs.version }}
+          generate_release_notes: true
+          body: |
+            Versao alinhada ao Cargo.toml: `${{ needs.meta.outputs.cargo_version }}`
+            Artefatos com checksums SHA-256 em `SHA256SUMS.txt`.
+          files: |
+            release-artifacts/*.zip
+            release-artifacts/*.tar.gz
+            release-artifacts/*.sha256
+            release-artifacts/*.sig
+            release-artifacts/SHA256SUMS.txt
