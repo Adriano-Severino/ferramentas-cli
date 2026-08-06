@@ -24,3 +24,5 @@ O projeto está em desenvolvimento. O foco atual é na implementação dos coman
 - **sistema-padrao:** A CLI será responsável por garantir que novos projetos sejam criados com a referência correta ao `sistema-padrao`, facilitando o uso da biblioteca padrão desde o início.
 - **net-por-do-sol:** Quando o usuário optar por compilar para .NET, a CLI invocará a lógica do `net-por-do-sol` para gerar o assembly CIL.
 - **pordosol-language-server:** A CLI e o Language Server são as duas principais ferramentas que compõem a experiência de desenvolvimento da linguagem "Por do Sol".
+
+Para novas features ou refatorações, siga as boas práticas e padrões de projeto para obter performance, confiabilidade, rastreabilidade, manutenibilidade e escalabilidade. Isso facilitará a manutenção e a implementação de novas features, tornando a linguagem profissional e pronta para o mercado.
