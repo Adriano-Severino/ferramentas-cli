@@ -32,7 +32,7 @@ enum CommandEnum {
         #[arg(value_name = "TIPO")]
         tipo: Option<String>,
         /// Nome do projeto (cria no diretorio atual se -o nao for fornecido)
-        #[arg(value_name = "NOME")]
+        #[arg(short = 'n', long = "name", value_name = "NOME")]
         nome: Option<String>,
         /// Pasta base de saida
         #[arg(short = 'o', long = "output", value_name = "PASTA")]
@@ -253,16 +253,28 @@ fn resolver_new_params_modern(
     output: Option<&Path>,
 ) -> Result<(PathBuf, String)> {
     let cwd = std::env::current_dir().context("Falha ao obter diretorio atual")?;
-    
-    let template_final = tipo
-        .map(normalizar_tipo)
-        .unwrap_or_else(|| "console".to_string());
+    let tipo_str = tipo.unwrap_or("");
+    let is_known_template = ["console", "web", "biblioteca", "classe", "list"].contains(&tipo_str.to_ascii_lowercase().as_str());
 
-    let destino = match (output, nome) {
-        (Some(out), Some(n)) => out.join(n),
-        (Some(out), None) => out.to_path_buf(),
-        (None, Some(n)) => cwd.join(n),
-        (None, None) => cwd.clone(),
+    let (destino, template_final) = if !is_known_template && nome.is_none() && output.is_none() && !tipo_str.is_empty() {
+        // Legacy mode: pordosol novo <caminho>
+        let dest = PathBuf::from(tipo_str);
+        let absolute_dest = if dest.is_absolute() { dest } else { cwd.join(dest) };
+        (absolute_dest, "console".to_string())
+    } else {
+        let template_final = if tipo_str.is_empty() {
+            "console".to_string()
+        } else {
+            normalizar_tipo(tipo_str)
+        };
+
+        let destino = match (output, nome) {
+            (Some(out), Some(n)) => out.join(n),
+            (Some(out), None) => out.to_path_buf(),
+            (None, Some(n)) => cwd.join(n),
+            (None, None) => cwd.clone(),
+        };
+        (destino, template_final)
     };
 
     Ok((destino, template_final))
