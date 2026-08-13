@@ -25,13 +25,13 @@ function Test-WiXInstalled {
     try {
         $candle = Get-Command "candle" -ErrorAction Stop
         $light = Get-Command "light" -ErrorAction Stop
-        Write-Host "✓ WiX Toolset found"
+        Write-Host "WiX Toolset found"
         Write-Host "  candle: $($candle.Source)"
         Write-Host "  light: $($light.Source)"
         return $true
     }
     catch {
-        Write-Host "✗ WiX Toolset not found"
+        Write-Host "WiX Toolset not found"
         Write-Host "  Install from: https://wixtoolset.org/releases/"
         return $false
     }
@@ -56,7 +56,6 @@ if (-not (Test-Path -LiteralPath $packageDir)) {
 
 Write-Host "=== Preparing WiX Configuration ==="
 
-# Read and modify WiX config with current version
 $wixContent = Get-Content -LiteralPath $wixConfig -Raw
 $wixContent = $wixContent -replace '\{VERSION\}', $Version
 $wixContent = $wixContent -replace '\{PACKAGE_DIR\}', $packageDir.Replace('\', '\\')
@@ -64,7 +63,7 @@ $wixContent = $wixContent -replace '\{PACKAGE_DIR\}', $packageDir.Replace('\', '
 $tempWix = Join-Path $env:TEMP "pordosol-wix-config-$Version.xml"
 $wixContent | Out-File -LiteralPath $tempWix -Encoding UTF8
 
-Write-Host "✓ WiX configuration prepared"
+Write-Host "WiX configuration prepared"
 Write-Host ""
 
 Write-Host "=== Compiling WiX Source ==="
@@ -80,7 +79,7 @@ if ($LASTEXITCODE -ne 0) {
     throw "Falha ao compilar WiX source com candle"
 }
 
-Write-Host "✓ WiX source compiled"
+Write-Host "WiX source compiled"
 Write-Host ""
 
 Write-Host "=== Linking MSI ==="
@@ -90,10 +89,9 @@ if ($LASTEXITCODE -ne 0) {
     throw "Falha ao linkar MSI com light"
 }
 
-Write-Host "✓ MSI created"
+Write-Host "MSI created"
 Write-Host ""
 
-# Cleanup
 Remove-Item -LiteralPath $tempWix -Force
 Remove-Item -LiteralPath $objDir -Recurse -Force
 
