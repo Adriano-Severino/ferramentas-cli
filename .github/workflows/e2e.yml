@@ -1,0 +1,147 @@
+name: E2E - pordosol CLI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  e2e:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Build `ferramentas-cli` (release)
+        run: cargo build --manifest-path ferramentas-cli/Cargo.toml --release
+
+      - name: Run E2E on Linux
+        if: runner.os == 'Linux'
+        env:
+          PATH: ${{ github.workspace }}/target/release:${{ env.PATH }}
+          KEEP_ARTIFACTS: '1'
+        run: |
+          chmod +x ferramentas-cli/tests/e2e_new_build_run.sh
+          ferramentas-cli/tests/e2e_new_build_run.sh
+
+      - name: Run E2E on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          PATH: ${{ github.workspace }}\target\release;${{ env.PATH }}
+          KEEP_ARTIFACTS: '1'
+        run: |
+          Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+          .\ferramentas-cli\tests\e2e_new_build_run.ps1
+
+      - name: Upload E2E artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: pordosol-e2e-artifacts-${{ github.run_id }}
+          path: |
+            ferramentas-cli-e2e-artifacts-*
+            ferramentas-cli/**/e2e.log
+            artifacts-e2e-*.zip
+          retention-days: 7
+
+      - name: Create ZIP with artifacts (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          set -e
+          cd $GITHUB_WORKSPACE
+          ZIPNAME=artifacts-e2e-${{ github.run_id }}.zip
+          # criar zip com todos os diretórios de artefatos
+          if compgen -G "ferramentas-cli-e2e-artifacts-*" > /dev/null; then
+            zip -r "$ZIPNAME" ferramentas-cli-e2e-artifacts-* || true
+          fi
+
+      - name: Create ZIP with artifacts (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ws = "${{ github.workspace }}"
+          $zip = Join-Path $ws "artifacts-e2e-${{ github.run_id }}.zip"
+          Push-Location $ws
+          $dirs = Get-ChildItem -Directory -Filter "ferramentas-cli-e2e-artifacts-*" -ErrorAction SilentlyContinue
+          if ($dirs) {
+            foreach ($d in $dirs) {
+              Compress-Archive -Path $d.FullName -DestinationPath $zip -Update -Force
+            }
+          }
+          Pop-Location
+
+      - name: Upload ZIP artifact (if present)
+        uses: actions/upload-artifact@v4
+        with:
+          name: pordosol-e2e-zip-${{ github.run_id }}
+          path: |
+            artifacts-e2e-*.zip
+          retention-days: 7
+
+      - name: Comment on PR with artifact links
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const runId = process.env.GITHUB_RUN_ID;
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+            const artifactsUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/suites/${runId}/artifacts`;
+            const issue_number = context.payload.pull_request.number;
+            const body = `E2E concluído — artefatos: ${artifactsUrl}\nRun: ${runUrl}`;
+            await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number, body });
+
+      - name: Send E2E results via SMTP (optional)
+        if: ${{ secrets.SMTP_HOST && secrets.SMTP_USERNAME && secrets.SMTP_PASSWORD && secrets.TO_EMAIL && secrets.FROM_EMAIL }}
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: ${{ secrets.SMTP_HOST }}
+          server_port: ${{ secrets.SMTP_PORT }}
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: "E2E ${{ github.workflow }} #${{ github.run_number }} — ${{ job.status }}"
+          body: |
+            O job E2E terminou com status: ${{ job.status }}
+            Artifacts: https://github.com/${{ github.repository }}/suites/${{ github.run_id }}/artifacts
+          to: ${{ secrets.TO_EMAIL }}
+          from: ${{ secrets.FROM_EMAIL }}
+          secure: true
+
+      - name: Notify Slack (Linux)
+        if: ${{ secrets.SLACK_WEBHOOK }} && runner.os == 'Linux'
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+        run: |
+          TEXT="E2E ${{ job.status }} for ${{ github.workflow }} #${{ github.run_number }}. Artifacts: pordosol-e2e-artifacts-${{ github.run_id }}"
+          PAYLOAD="{\"text\": \"${TEXT}\"}"
+          curl -s -X POST -H 'Content-type: application/json' --data "${PAYLOAD}" "${SLACK_WEBHOOK}" || true
+
+      - name: Notify Slack (Windows)
+        if: ${{ secrets.SLACK_WEBHOOK }} && runner.os == 'Windows'
+        shell: pwsh
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+        run: |
+          $text = "E2E ${{ job.status }} for ${{ github.workflow }} #${{ github.run_number }}. Artifacts: pordosol-e2e-artifacts-${{ github.run_id }}"
+          $payload = @{ text = $text } | ConvertTo-Json
+          try { Invoke-RestMethod -Uri $env:SLACK_WEBHOOK -Method Post -Body $payload -ContentType 'application/json' } catch { Write-Host "Slack notify failed: $_" }
+
+      - name: Comment on PR with artifacts info
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const runId = process.env.GITHUB_RUN_ID;
+            const issue_number = context.payload.pull_request.number;
+            const body = `E2E concluído — artefatos disponíveis: pordosol-e2e-artifacts-${runId}`;
+            await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number, body });
