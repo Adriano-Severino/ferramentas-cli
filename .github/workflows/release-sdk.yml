@@ -21,12 +21,20 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
+      - name: Checkout compilador-portugues
+        uses: actions/checkout@v4
         with:
-          profile: minimal
-          toolchain: stable
-          override: true
+          repository: Adriano-Severino/compilador-portugues
+          path: ../compilador-portugues
+
+      - name: Checkout sistema-padrao
+        uses: actions/checkout@v4
+        with:
+          repository: Adriano-Severino/sistema-padrao
+          path: ../sistema-padrao
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Install WiX Toolset
         run: |
@@ -83,12 +91,20 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
+      - name: Checkout compilador-portugues
+        uses: actions/checkout@v4
         with:
-          profile: minimal
-          toolchain: stable
-          override: true
+          repository: Adriano-Severino/compilador-portugues
+          path: ../compilador-portugues
+
+      - name: Checkout sistema-padrao
+        uses: actions/checkout@v4
+        with:
+          repository: Adriano-Severino/sistema-padrao
+          path: ../sistema-padrao
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Install dependencies
         run: |
@@ -145,11 +161,7 @@ jobs:
           submodules: recursive
 
       - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Test CLI
         run: cargo test

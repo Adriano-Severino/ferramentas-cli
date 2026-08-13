@@ -183,7 +183,7 @@ fn workflows_e_scripts_release_existem() {
     assert!(raiz
         .join(".github")
         .join("workflows")
-        .join("release.yml")
+        .join("release-sdk.yml")
         .exists());
     assert!(raiz
         .join("scripts")

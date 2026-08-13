@@ -3,8 +3,8 @@ set -euo pipefail
 
 VERSION="${1:-0.1.0}"
 OUTPUT_DIR="${2:-}"
-SKIP_BUILD=0
-SKIP_TESTS=0
+SKIP_BUILD="${3:-0}"
+SKIP_TESTS="${4:-0}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
