@@ -99,6 +99,7 @@ upsert_profile_block() {
   {
     echo "$begin"
     echo "export PORDOSOL_HOME=\"$INSTALL_ROOT\""
+    echo "export PORTUGOL_STDLIB_PATH=\"$TOOLS_DIR/stdlib\""
     if [[ $NO_PATH -eq 0 ]]; then
       echo "export PATH=\"\$PORDOSOL_HOME/bin:\$PATH\""
     fi

@@ -210,6 +210,9 @@ else {
 [Environment]::SetEnvironmentVariable("PORDOSOL_HOME", $InstallRoot, "User")
 $env:PORDOSOL_HOME = $InstallRoot
 
+[Environment]::SetEnvironmentVariable("PORTUGOL_STDLIB_PATH", $stdlibDest, "User")
+$env:PORTUGOL_STDLIB_PATH = $stdlibDest
+
 if (-not $NoPath) {
     Add-ToUserPath -Entry $binDir
     if (-not ($env:Path.Split(";") | Where-Object { $_ -ieq $binDir })) {
