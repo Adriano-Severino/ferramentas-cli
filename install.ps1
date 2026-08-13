@@ -4,7 +4,8 @@ param(
     [string]$CompilerPath = "",
     [string]$StdlibPath = "",
     [switch]$SkipBuild,
-    [switch]$NoPath
+    [switch]$NoPath,
+    [switch]$PackageMode
 )
 
 $ErrorActionPreference = "Stop"
@@ -77,15 +78,38 @@ $repoRoot = Split-Path -Parent $scriptDir
 $isWindows = $true
 $exeSuffix = if ($isWindows) { ".exe" } else { "" }
 
-if ([string]::IsNullOrWhiteSpace($CliPath)) {
-    $CliPath = $scriptDir
+# Auto-detect package mode if running from extracted package
+$packageIndicator = Join-Path $scriptDir "bin\pordosol$exeSuffix"
+if (-not $PackageMode -and (Test-Path -LiteralPath $packageIndicator)) {
+    $PackageMode = $true
+    Write-Host "Modo pacote detectado automaticamente."
 }
-if ([string]::IsNullOrWhiteSpace($CompilerPath)) {
-    $CompilerPath = Join-Path $repoRoot "compilador-portugues"
+
+if ($PackageMode) {
+    # In package mode, all components are in the script directory
+    if ([string]::IsNullOrWhiteSpace($CliPath)) {
+        $CliPath = $scriptDir
+    }
+    if ([string]::IsNullOrWhiteSpace($CompilerPath)) {
+        $CompilerPath = Join-Path $scriptDir "tools"
+    }
+    if ([string]::IsNullOrWhiteSpace($StdlibPath)) {
+        $StdlibPath = Join-Path $scriptDir "tools\stdlib"
+    }
 }
-if ([string]::IsNullOrWhiteSpace($StdlibPath)) {
-    $StdlibPath = Join-Path $repoRoot "sistema-padrao"
+else {
+    # Development mode - use repository structure
+    if ([string]::IsNullOrWhiteSpace($CliPath)) {
+        $CliPath = $scriptDir
+    }
+    if ([string]::IsNullOrWhiteSpace($CompilerPath)) {
+        $CompilerPath = Join-Path $repoRoot "compilador-portugues"
+    }
+    if ([string]::IsNullOrWhiteSpace($StdlibPath)) {
+        $StdlibPath = Join-Path $repoRoot "sistema-padrao"
+    }
 }
+
 if ([string]::IsNullOrWhiteSpace($InstallRoot)) {
     $InstallRoot = if ($env:PORDOSOL_HOME) { $env:PORDOSOL_HOME } else { Join-Path $HOME ".pordosol" }
 }
@@ -100,27 +124,37 @@ $toolsDir = Join-Path $InstallRoot "tools"
 $templatesDir = Join-Path $InstallRoot "templates"
 
 Write-Host "== Instalador Por do Sol CLI =="
+Write-Host "Modo:        $(if ($PackageMode) { 'Pacote' } else { 'Desenvolvimento' })"
 Write-Host "CLI:         $CliPath"
 Write-Host "Compilador:  $CompilerPath"
 Write-Host "Stdlib:      $StdlibPath"
 Write-Host "Destino:     $InstallRoot"
 
-Ensure-Command "cargo"
-
-if (-not $SkipBuild) {
-    Write-Host "Compilando CLI..."
-    Invoke-CargoBuild -WorkDir $CliPath -ExtraArgs @("--bin", "pordosol")
-    Write-Host "Compilando compilador/interpretador..."
-    Invoke-CargoBuild -WorkDir $CompilerPath -ExtraArgs @("--bin", "compilador", "--bin", "interpretador")
+if ($PackageMode) {
+    Write-Host "Modo pacote: usando binarios pre-compilados."
+    $cliSource = Join-Path $CliPath "bin\pordosol$exeSuffix"
+    $compSource = Join-Path $CompilerPath "compilador$exeSuffix"
+    $interpSource = Join-Path $CompilerPath "interpretador$exeSuffix"
+    $templatesSource = Join-Path $CliPath "templates"
 }
 else {
-    Write-Host "SkipBuild ativo: usando artefatos existentes."
+    Ensure-Command "cargo"
+    
+    if (-not $SkipBuild) {
+        Write-Host "Compilando CLI..."
+        Invoke-CargoBuild -WorkDir $CliPath -ExtraArgs @("--bin", "pordosol")
+        Write-Host "Compilando compilador/interpretador..."
+        Invoke-CargoBuild -WorkDir $CompilerPath -ExtraArgs @("--bin", "compilador", "--bin", "interpretador")
+    }
+    else {
+        Write-Host "SkipBuild ativo: usando artefatos existentes."
+    }
+    
+    $cliSource = Join-Path $CliPath "target\release\pordosol$exeSuffix"
+    $compSource = Join-Path $CompilerPath "target\release\compilador$exeSuffix"
+    $interpSource = Join-Path $CompilerPath "target\release\interpretador$exeSuffix"
+    $templatesSource = Join-Path $CliPath "templates"
 }
-
-$cliSource = Join-Path $CliPath "target\release\pordosol$exeSuffix"
-$compSource = Join-Path $CompilerPath "target\release\compilador$exeSuffix"
-$interpSource = Join-Path $CompilerPath "target\release\interpretador$exeSuffix"
-$templatesSource = Join-Path $CliPath "templates"
 
 foreach ($arquivo in @($cliSource, $compSource, $interpSource)) {
     if (-not (Test-Path -LiteralPath $arquivo)) {
@@ -151,7 +185,27 @@ $stdlibDest = Join-Path $toolsDir "stdlib"
 if (Test-Path -LiteralPath $stdlibDest) {
     Remove-Item -LiteralPath $stdlibDest -Recurse -Force
 }
-Copy-Item -LiteralPath $StdlibPath -Destination $stdlibDest -Recurse -Force
+
+if ($PackageMode) {
+    # In package mode, stdlib is already in the correct location
+    Copy-Item -LiteralPath $StdlibPath -Destination $stdlibDest -Recurse -Force
+}
+else {
+    # In development mode, compile stdlib
+    Write-Host "Compilando biblioteca padrao..."
+    $compilerBinary = $compSource
+    Push-Location $StdlibPath
+    try {
+        & $compilerBinary --compilar-biblioteca=.
+        if ($LASTEXITCODE -ne 0) {
+            throw "Falha ao compilar biblioteca padrao"
+        }
+    }
+    finally {
+        Pop-Location
+    }
+    Copy-Item -LiteralPath $StdlibPath -Destination $stdlibDest -Recurse -Force
+}
 
 [Environment]::SetEnvironmentVariable("PORDOSOL_HOME", $InstallRoot, "User")
 $env:PORDOSOL_HOME = $InstallRoot
@@ -171,5 +225,9 @@ Write-Host "Instalacao concluida."
 Write-Host "PORDOSOL_HOME = $InstallRoot"
 Write-Host "Binario: $(Join-Path $binDir "pordosol$exeSuffix")"
 Write-Host ""
+if ($PackageMode) {
+    Write-Host "Voce instalou a versao pre-compilada do Por do Sol SDK."
+    Write-Host "Para atualizar, baixe a nova versao e execute este script novamente."
+}
 Write-Host "Reabra o terminal e execute:"
 Write-Host "  pordosol doctor"

@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="*" 
+           Name="Por do Sol SDK" 
+           Language="1033" 
+           Version="{VERSION}" 
+           Manufacturer="Adriano Severino" 
+           UpgradeCode="8A8F9B7C-6D5E-4F3A-9B2C-1D3E4F5A6B7C">
+    
+    <Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine" />
+    
+    <MajorUpgrade DowngradeErrorMessage="Uma versao mais recente do Por do Sol SDK ja esta instalada." />
+    
+    <MediaTemplate EmbedCab="yes" />
+    
+    <Feature Id="ProductFeature" Title="Por do Sol SDK" Level="1">
+      <ComponentGroupRef Id="ProductComponents" />
+      <ComponentGroupRef Id="PathComponents" />
+    </Feature>
+    
+    <!-- Directory Structure -->
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFilesFolder">
+        <Directory Id="INSTALLFOLDER" Name="PorDoSol" />
+      </Directory>
+      
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="ApplicationProgramsFolder" Name="Por do Sol SDK" />
+      </Directory>
+      
+      <Directory Id="DesktopFolder" Name="Desktop" />
+    </Directory>
+    
+    <!-- Components -->
+    <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
+      <Component Id="ProductFiles" Guid="*">
+        <File Source="{PACKAGE_DIR}\\*.*" />
+      </Component>
+    </ComponentGroup>
+    
+    <!-- PATH Configuration -->
+    <ComponentGroup Id="PathComponents" Directory="INSTALLFOLDER">
+      <Component Id="PathEnvironment" Guid="*">
+        <Environment Id="PathEnvironment" 
+                    Name="PATH" 
+                    Value="[INSTALLFOLDER]bin" 
+                    Permanent="no" 
+                    Part="last" 
+                    Action="set" 
+                    System="yes" />
+      </Component>
+    </ComponentGroup>
+    
+    <!-- UI Configuration -->
+    <UIRef Id="WixUI_InstallDir" />
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
+    
+    <!-- License -->
+    <WixVariable Id="WixUILicenseRtf" Value="{PACKAGE_DIR}\\LICENSE" />
+    
+  </Product>
+</Wix>

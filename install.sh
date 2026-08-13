@@ -10,6 +10,7 @@ COMPILER_PATH="$REPO_ROOT/compilador-portugues"
 STDLIB_PATH="$REPO_ROOT/sistema-padrao"
 SKIP_BUILD=0
 NO_PATH=0
+PACKAGE_MODE=0
 
 usage() {
   cat <<'EOF'
@@ -22,6 +23,7 @@ Opcoes:
   --stdlib-path <dir>    Caminho da biblioteca padrao (sistema-padrao)
   --skip-build           Nao executar cargo build --release
   --no-path              Nao modificar arquivos de profile para PATH
+  --package-mode         Modo pacote: usar binarios pre-compilados
   -h, --help             Exibe esta ajuda
 EOF
 }
@@ -50,6 +52,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --no-path)
       NO_PATH=1
+      shift
+      ;;
+    --package-mode)
+      PACKAGE_MODE=1
       shift
       ;;
     -h|--help)
@@ -100,27 +106,55 @@ upsert_profile_block() {
   } >> "$profile"
 }
 
+# Auto-detect package mode if running from extracted package
+PACKAGE_INDICATOR="$SCRIPT_DIR/bin/pordosol"
+if [[ $PACKAGE_MODE -eq 0 && -f "$PACKAGE_INDICATOR" ]]; then
+  PACKAGE_MODE=1
+  echo "Modo pacote detectado automaticamente."
+fi
+
+if [[ $PACKAGE_MODE -eq 1 ]]; then
+  # In package mode, all components are in the script directory
+  CLI_PATH="$SCRIPT_DIR"
+  COMPILER_PATH="$SCRIPT_DIR/tools"
+  STDLIB_PATH="$SCRIPT_DIR/tools/stdlib"
+else
+  # Development mode - use repository structure
+  CLI_PATH="$SCRIPT_DIR"
+  COMPILER_PATH="$REPO_ROOT/compilador-portugues"
+  STDLIB_PATH="$REPO_ROOT/sistema-padrao"
+fi
+
 echo "== Instalador Por do Sol CLI =="
+echo "Modo:        $(if [[ $PACKAGE_MODE -eq 1 ]]; then echo 'Pacote'; else echo 'Desenvolvimento'; fi)"
 echo "CLI:         $CLI_PATH"
 echo "Compilador:  $COMPILER_PATH"
 echo "Stdlib:      $STDLIB_PATH"
 echo "Destino:     $INSTALL_ROOT"
 
-require_cmd cargo
-
-if [[ $SKIP_BUILD -eq 0 ]]; then
-  echo "Compilando CLI..."
-  (cd "$CLI_PATH" && cargo build --release --bin pordosol)
-  echo "Compilando compilador/interpretador..."
-  (cd "$COMPILER_PATH" && cargo build --release --bin compilador --bin interpretador)
+if [[ $PACKAGE_MODE -eq 1 ]]; then
+  echo "Modo pacote: usando binarios pre-compilados."
+  CLI_SOURCE="$CLI_PATH/bin/pordosol"
+  COMP_SOURCE="$COMPILER_PATH/compilador"
+  INTERP_SOURCE="$COMPILER_PATH/interpretador"
+  TEMPLATES_SOURCE="$CLI_PATH/templates"
 else
-  echo "SkipBuild ativo: usando artefatos existentes."
+  require_cmd cargo
+  
+  if [[ $SKIP_BUILD -eq 0 ]]; then
+    echo "Compilando CLI..."
+    (cd "$CLI_PATH" && cargo build --release --bin pordosol)
+    echo "Compilando compilador/interpretador..."
+    (cd "$COMPILER_PATH" && cargo build --release --bin compilador --bin interpretador)
+  else
+    echo "SkipBuild ativo: usando artefatos existentes."
+  fi
+  
+  CLI_SOURCE="$CLI_PATH/target/release/pordosol"
+  COMP_SOURCE="$COMPILER_PATH/target/release/compilador"
+  INTERP_SOURCE="$COMPILER_PATH/target/release/interpretador"
+  TEMPLATES_SOURCE="$CLI_PATH/templates"
 fi
-
-CLI_SOURCE="$CLI_PATH/target/release/pordosol"
-COMP_SOURCE="$COMPILER_PATH/target/release/compilador"
-INTERP_SOURCE="$COMPILER_PATH/target/release/interpretador"
-TEMPLATES_SOURCE="$CLI_PATH/templates"
 
 for f in "$CLI_SOURCE" "$COMP_SOURCE" "$INTERP_SOURCE"; do
   if [[ ! -f "$f" ]]; then
@@ -155,7 +189,16 @@ mkdir -p "$TEMPLATES_DIR"
 cp -R "$TEMPLATES_SOURCE/." "$TEMPLATES_DIR"
 
 rm -rf "$TOOLS_DIR/stdlib"
-cp -R "$STDLIB_PATH" "$TOOLS_DIR/stdlib"
+
+if [[ $PACKAGE_MODE -eq 1 ]]; then
+  # In package mode, stdlib is already in the correct location
+  cp -R "$STDLIB_PATH" "$TOOLS_DIR/stdlib"
+else
+  # In development mode, compile stdlib
+  echo "Compilando biblioteca padrao..."
+  (cd "$STDLIB_PATH" && "$COMP_SOURCE" --compilar-biblioteca=.)
+  cp -R "$STDLIB_PATH" "$TOOLS_DIR/stdlib"
+fi
 
 export PORDOSOL_HOME="$INSTALL_ROOT"
 if [[ $NO_PATH -eq 0 ]]; then
@@ -202,6 +245,10 @@ echo ""
 echo "Instalacao concluida."
 echo "PORDOSOL_HOME = $INSTALL_ROOT"
 echo "Binario: $BIN_DIR/pordosol"
+if [[ $PACKAGE_MODE -eq 1 ]]; then
+  echo "Voce instalou a versao pre-compilada do Por do Sol SDK."
+  echo "Para atualizar, baixe a nova versao e execute este script novamente."
+fi
 if [[ $NO_PATH -eq 0 ]]; then
   echo "PATH atualizado nos profiles: ${unique_profiles[*]}"
 else

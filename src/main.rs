@@ -29,20 +29,14 @@ enum CommandEnum {
     #[command(name = "new", alias = "novo", visible_aliases = ["Novo", "criar", "Criar"])]
     New {
         /// Tipo do projeto (console|web|biblioteca|classe), `list` ou caminho legado
-        #[arg(value_name = "TIPO_OU_CAMINHO")]
-        tipo_ou_caminho: Option<String>,
-        /// Nome do projeto
-        #[arg(short = 'n', long = "nome", value_name = "NOME")]
+        #[arg(value_name = "TIPO")]
+        tipo: Option<String>,
+        /// Nome do projeto (cria no diretorio atual se -o nao for fornecido)
+        #[arg(value_name = "NOME")]
         nome: Option<String>,
         /// Pasta base de saida
         #[arg(short = 'o', long = "output", value_name = "PASTA")]
         output: Option<PathBuf>,
-        /// Tipo do projeto (compatibilidade)
-        #[arg(long, value_name = "TIPO")]
-        tipo: Option<String>,
-        /// Template do projeto (compatibilidade)
-        #[arg(long, value_name = "TEMPLATE")]
-        template: Option<String>,
         /// Nao sobrescrever arquivos existentes
         #[arg(long, action = clap::ArgAction::SetTrue)]
         nao_sobrescrever: bool,
@@ -150,6 +144,14 @@ enum CommandEnum {
         #[arg(long, default_value = ".")]
         caminho_projeto: PathBuf,
     },
+
+    /// Verifica atualizacoes disponiveis do SDK
+    #[command(visible_alias = "Atualizar")]
+    Update {
+        /// Nao instalar atualizacao automaticamente
+        #[arg(long, action = clap::ArgAction::SetTrue)]
+        check_only: bool,
+    },
 }
 
 fn main() -> Result<()> {
@@ -170,28 +172,18 @@ fn main() -> Result<()> {
 
     match cli.command {
         Some(CommandEnum::New {
-            tipo_ou_caminho,
+            tipo,
             nome,
             output,
-            tipo,
-            template,
             nao_sobrescrever,
         }) => {
-            if eh_new_list_request(
-                tipo_ou_caminho.as_deref(),
-                nome.as_deref(),
-                output.as_deref(),
-                tipo.as_deref(),
-                template.as_deref(),
-            ) {
+            if tipo.as_deref().map(normalizar_tipo).as_deref() == Some("list") {
                 return novo::listar_templates_cmd();
             }
-            let (destino, template_final) = resolver_new_params(
-                tipo_ou_caminho.as_deref(),
+            let (destino, template_final) = resolver_new_params_modern(
+                tipo.as_deref(),
                 nome.as_deref(),
                 output.as_deref(),
-                tipo.as_deref(),
-                template.as_deref(),
             )?;
             novo::novo_cmd(&destino, nao_sobrescrever, &template_final)
         }
@@ -234,6 +226,7 @@ fn main() -> Result<()> {
             caminho_local.as_deref(),
             &caminho_projeto,
         ),
+        Some(CommandEnum::Update { check_only }) => update_cmd(check_only),
         None => {
             let mut cmd = Cli::command();
             cmd.print_long_help().ok();
@@ -243,31 +236,8 @@ fn main() -> Result<()> {
     }
 }
 
-fn eh_tipo_projeto(valor: &str) -> bool {
-    matches!(
-        valor.to_ascii_lowercase().as_str(),
-        "console" | "web" | "biblioteca" | "classe"
-    )
-}
-
 fn normalizar_tipo(valor: &str) -> String {
     valor.trim().to_ascii_lowercase()
-}
-
-fn eh_new_list_request(
-    tipo_ou_caminho: Option<&str>,
-    nome: Option<&str>,
-    output: Option<&Path>,
-    tipo: Option<&str>,
-    template: Option<&str>,
-) -> bool {
-    let sem_flags = nome.is_none() && output.is_none() && tipo.is_none() && template.is_none();
-    sem_flags
-        && tipo_ou_caminho
-            .map(normalizar_tipo)
-            .as_deref()
-            .map(|v| v == "list")
-            .unwrap_or(false)
 }
 
 fn resolver_project_path(project: Option<&Path>, caminho_legacy: Option<&Path>) -> PathBuf {
@@ -277,55 +247,25 @@ fn resolver_project_path(project: Option<&Path>, caminho_legacy: Option<&Path>) 
         .unwrap_or_else(|| PathBuf::from("."))
 }
 
-fn resolver_new_params(
-    tipo_ou_caminho: Option<&str>,
+fn resolver_new_params_modern(
+    tipo: Option<&str>,
     nome: Option<&str>,
     output: Option<&Path>,
-    tipo: Option<&str>,
-    template: Option<&str>,
 ) -> Result<(PathBuf, String)> {
     let cwd = std::env::current_dir().context("Falha ao obter diretorio atual")?;
-    let first = tipo_ou_caminho.map(str::trim).filter(|v| !v.is_empty());
-
-    let tipo_flag = tipo
+    
+    let template_final = tipo
         .map(normalizar_tipo)
-        .or_else(|| template.map(normalizar_tipo));
+        .unwrap_or_else(|| "console".to_string());
 
-    // Novo estilo: new <tipo> -n <nome> -o <saida>
-    if nome.is_some() || output.is_some() || tipo.is_some() {
-        let template_final = if let Some(t) = tipo_flag {
-            t
-        } else if let Some(f) = first {
-            normalizar_tipo(f)
-        } else {
-            "console".to_string()
-        };
+    let destino = match (output, nome) {
+        (Some(out), Some(n)) => out.join(n),
+        (Some(out), None) => out.to_path_buf(),
+        (None, Some(n)) => cwd.join(n),
+        (None, None) => cwd.clone(),
+    };
 
-        let destino = match (output, nome) {
-            (Some(out), Some(n)) => out.join(n),
-            (Some(out), None) => out.to_path_buf(),
-            (None, Some(n)) => cwd.join(n),
-            (None, None) => cwd.clone(),
-        };
-
-        return Ok((destino, template_final));
-    }
-
-    // Sem flags de novo estilo: manter compatibilidade
-    if let Some(first_val) = first {
-        if eh_tipo_projeto(first_val) {
-            let template_final = tipo_flag.unwrap_or_else(|| normalizar_tipo(first_val));
-            return Ok((cwd, template_final));
-        }
-
-        // modo legado: `novo <caminho> --template ...`
-        let template_final = tipo_flag.unwrap_or_else(|| "console".to_string());
-        let destino = PathBuf::from(first_val);
-        return Ok((destino, template_final));
-    }
-
-    let template_final = tipo_flag.unwrap_or_else(|| "console".to_string());
-    Ok((cwd, template_final))
+    Ok((destino, template_final))
 }
 
 fn imprimir_versoes(cwd: &Path) {
@@ -627,6 +567,83 @@ fn imprimir_item_doctor(
     if !item.encontrado {
         pendencias.push(acao);
     }
+}
+
+fn update_cmd(check_only: bool) -> Result<()> {
+    let current_version = env!("CARGO_PKG_VERSION");
+    println!("=== Verificando atualizacoes do Por do Sol SDK ===");
+    println!("Versao atual: {}", current_version);
+    println!();
+
+    // GitHub API to check for latest release
+    let api_url = "https://api.github.com/repos/Adriano-Severino/Compilador/releases/latest";
+    
+    match check_github_update(api_url, current_version, check_only) {
+        Ok(_) => Ok(()),
+        Err(e) => {
+            println!("Erro ao verificar atualizacoes automaticamente: {}", e);
+            println!();
+            println!("Voce pode verificar manualmente em: https://github.com/Adriano-Severino/Compilador/releases");
+            Ok(()) // Don't fail the command, just report the error
+        }
+    }
+}
+
+fn check_github_update(api_url: &str, current_version: &str, check_only: bool) -> Result<()> {
+    let client = reqwest::blocking::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()?;
+    
+    let response = client.get(api_url)
+        .header("User-Agent", "pordosol-cli")
+        .send()?;
+
+    if !response.status().is_success() {
+        anyhow::bail!("API retornou status: {}", response.status());
+    }
+
+    let release: serde_json::Value = response.json()?;
+    
+    if let Some(tag_name) = release.get("tag_name").and_then(|v| v.as_str()) {
+        let latest_version = tag_name.trim_start_matches('v');
+        println!("Versao mais recente: {}", latest_version);
+        println!();
+        
+        if latest_version == current_version {
+            println!("Voce ja esta usando a versao mais recente!");
+            return Ok(());
+        }
+        
+        println!("Nova versao disponivel: {} -> {}", current_version, latest_version);
+        
+        if let Some(html_url) = release.get("html_url").and_then(|v| v.as_str()) {
+            println!("Release notes: {}", html_url);
+        }
+        
+        if let Some(body) = release.get("body").and_then(|v| v.as_str()) {
+            println!();
+            println!("Notas da release:");
+            println!("{}", body);
+        }
+        
+        if check_only {
+            println!();
+            println!("Use 'pordosol update' para ver instrucoes de atualizacao.");
+            println!("Baixe manualmente de: https://github.com/Adriano-Severino/Compilador/releases");
+        } else {
+            println!();
+            println!("Para atualizar:");
+            println!("1. Baixe a nova versao de: https://github.com/Adriano-Severino/Compilador/releases");
+            println!("2. Desinstale a versao atual");
+            println!("3. Instale a nova versao seguindo o guia INSTALACAO.md");
+            println!();
+            println!("Atualizacao automatica sera implementada em versoes futuras.");
+        }
+    } else {
+        println!("Nao foi possivel determinar a versao mais recente.");
+    }
+
+    Ok(())
 }
 
 fn clean_cmd(caminho: &Path) -> Result<()> {

@@ -1,0 +1,80 @@
+{
+  "name": "pordosol-sdk",
+  "version": "0.1.0",
+  "description": "Por do Sol SDK - Ferramenta CLI e ambiente de desenvolvimento completo",
+  "author": "Adriano Severino",
+  "license": "MIT",
+  "homepage": "https://github.com/Adriano-Severino/Compilador",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Adriano-Severino/Compilador.git"
+  },
+  "components": {
+    "cli": {
+      "name": "ferramentas-cli",
+      "version": "0.1.0",
+      "description": "Ferramenta de linha de comando Por do Sol",
+      "binary": "pordosol"
+    },
+    "compiler": {
+      "name": "compilador-portugues",
+      "version": "0.1.0",
+      "description": "Compilador da linguagem Por do Sol",
+      "binary": "compilador"
+    },
+    "interpreter": {
+      "name": "interpretador",
+      "version": "0.1.0",
+      "description": "Interpretador de bytecode Por do Sol",
+      "binary": "interpretador"
+    },
+    "stdlib": {
+      "name": "sistema-padrao",
+      "version": "1.0.0",
+      "description": "Biblioteca padrao da linguagem Por do Sol",
+      "path": "stdlib"
+    }
+  },
+  "platforms": {
+    "windows-x64": {
+      "package": "pordosol-sdk-v{version}-windows-x64.zip",
+      "installer": "pordosol-sdk-v{version}-windows-x64.msi",
+      "checksum": "pordosol-sdk-v{version}-windows-x64.sha256"
+    },
+    "linux-x64": {
+      "package": "pordosol-sdk-v{version}-linux-x64.tar.gz",
+      "checksum": "pordosol-sdk-v{version}-linux-x64.sha256"
+    }
+  },
+  "installation": {
+    "default_directory": {
+      "windows": "C:\\Program Files\\PorDoSol",
+      "linux": "$HOME/.pordosol",
+      "macos": "$HOME/.pordosol"
+    },
+    "environment_variables": {
+      "PORDOSOL_HOME": "installation_directory",
+      "PATH": "installation_directory/bin"
+    },
+    "minimum_requirements": {
+      "windows": "Windows 10 or later",
+      "linux": "Any modern Linux distribution (x64)",
+      "disk_space": "100MB",
+      "ram": "512MB"
+    }
+  },
+  "update_check": {
+    "api_url": "https://api.github.com/repos/Adriano-Severino/Compilador/releases/latest",
+    "current_version": "0.1.0"
+  },
+  "templates": {
+    "console": "Template para aplicacao console",
+    "web": "Template para aplicacao web"
+  },
+  "documentation": {
+    "installation": "INSTALACAO.md",
+    "getting_started": "PRIMEIROS_PASSOS.md",
+    "troubleshooting": "SOLUCAO_PROBLEMAS.md",
+    "readme": "README.md"
+  }
+}

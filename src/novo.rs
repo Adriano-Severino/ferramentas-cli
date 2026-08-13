@@ -399,7 +399,7 @@ classe MinhaClasse
     }
 }
 
-funcao vazio Principal()
+função vazio Principal()
 {
     var pessoa = novo MinhaClasse("Joao", 25);
     pessoa.ApresentarSe();
@@ -408,7 +408,7 @@ funcao vazio Principal()
             }
             "web" => {
                 r#"// programa.pr - template web inicial
-funcao vazio Principal()
+função vazio Principal()
 {
     imprima("Projeto web Por do Sol criado.");
     imprima("Proximo passo: configure rotas e servidor no seu framework web.");
@@ -417,7 +417,7 @@ funcao vazio Principal()
             }
             _ => {
                 r#"// programa.pr - exemplo inicial
-funcao vazio Principal()
+função vazio Principal()
 {
     imprima("Ola, Por do Sol!");
 
