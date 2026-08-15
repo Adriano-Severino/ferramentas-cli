@@ -117,7 +117,7 @@ cp "$INTERP_SOURCE" "$TOOLS_DIR/interpretador"
 chmod +x "$BIN_DIR/pordosol" "$TOOLS_DIR/compilador" "$TOOLS_DIR/interpretador"
 
 echo "Copying templates..."
-cp -R "$TEMPLATES_SOURCE/." "$TEMPLATES_DIR"
+cp -R "$TEMPLATES_SOURCE"/* "$TEMPLATES_DIR/"
 
 echo "Copying stdlib..."
 cp -R "$STDLIB_PROJECT" "$STDLIB_DEST"

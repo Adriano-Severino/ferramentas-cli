@@ -155,7 +155,7 @@ Copy-Item -LiteralPath $compSource -Destination (Join-Path $toolsDir "compilador
 Copy-Item -LiteralPath $interpSource -Destination (Join-Path $toolsDir "interpretador.exe") -Force
 
 Write-Host "Copying templates..."
-Copy-Item -LiteralPath (Join-Path $templatesSource "*") -Destination $templatesDir -Recurse -Force
+Get-ChildItem -Path $templatesSource | Copy-Item -Destination $templatesDir -Recurse -Force
 
 Write-Host "Copying stdlib..."
 Copy-Item -LiteralPath $stdlibProject -Destination $stdlibDest -Recurse -Force
