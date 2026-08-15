@@ -132,7 +132,10 @@ $templatesSource = Join-Path $cliProject "templates"
 Test-ArtifactExists -Path $cliSource
 Test-ArtifactExists -Path $compSource
 Test-ArtifactExists -Path $interpSource
-Test-ArtifactExists -Path $templatesSource
+
+if (-not (Test-Path -LiteralPath $templatesSource)) {
+    throw "Templates directory not found: $templatesSource"
+}
 
 if (-not (Test-Path -LiteralPath $stdlibProject)) {
     throw "Biblioteca padrao nao encontrada em: $stdlibProject"
@@ -158,7 +161,17 @@ Write-Host "Copying templates..."
 Get-ChildItem -Path $templatesSource | Copy-Item -Destination $templatesDir -Recurse -Force
 
 Write-Host "Copying stdlib..."
-Copy-Item -LiteralPath $stdlibProject -Destination $stdlibDest -Recurse -Force
+# Copy only the compiled stdlib artifacts, not the source code
+$stdlibDist = Join-Path $stdlibProject "dist"
+if (Test-Path -LiteralPath $stdlibDist) {
+    # Create the destination directory first
+    New-Item -ItemType Directory -Force -Path $stdlibDest | Out-Null
+    # Copy only the compiled files (not the source directory structure)
+    Get-ChildItem -Path $stdlibDist -File | Copy-Item -Destination $stdlibDest -Force
+} else {
+    # Fallback: copy the entire stdlib project if dist doesn't exist
+    Copy-Item -LiteralPath $stdlibProject -Destination $stdlibDest -Recurse -Force
+}
 
 Write-Host "Copying install scripts..."
 Copy-Item -LiteralPath (Join-Path $cliProject "install.ps1") -Destination $packageDir -Force

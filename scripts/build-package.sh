@@ -95,7 +95,11 @@ TEMPLATES_SOURCE="$CLI_PROJECT/templates"
 test_artifact_exists "$CLI_SOURCE"
 test_artifact_exists "$COMP_SOURCE"
 test_artifact_exists "$INTERP_SOURCE"
-test_artifact_exists "$TEMPLATES_SOURCE"
+
+if [ ! -d "$TEMPLATES_SOURCE" ]; then
+    echo "ERROR: Templates directory not found: $TEMPLATES_SOURCE"
+    exit 1
+fi
 
 if [ ! -d "$STDLIB_PROJECT" ]; then
     echo "ERROR: Standard library not found at: $STDLIB_PROJECT"
@@ -120,7 +124,17 @@ echo "Copying templates..."
 cp -R "$TEMPLATES_SOURCE"/* "$TEMPLATES_DIR/"
 
 echo "Copying stdlib..."
-cp -R "$STDLIB_PROJECT" "$STDLIB_DEST"
+# Copy only the compiled stdlib artifacts, not the source code
+STDLIB_DIST="$STDLIB_PROJECT/dist"
+if [ -d "$STDLIB_DIST" ]; then
+    # Create the destination directory first
+    mkdir -p "$STDLIB_DEST"
+    # Copy only the compiled files (not the source directory structure)
+    cp "$STDLIB_DIST"/* "$STDLIB_DEST/"
+else
+    # Fallback: copy the entire stdlib project if dist doesn't exist
+    cp -R "$STDLIB_PROJECT" "$STDLIB_DEST"
+fi
 
 echo "Copying install scripts..."
 cp "$CLI_PROJECT/install.sh" "$PACKAGE_DIR/"
