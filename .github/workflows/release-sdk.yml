@@ -41,13 +41,6 @@ jobs:
           choco install wixtoolset -y
           echo "C:\Program Files (x86)\WiX Toolset v3.11\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
-      - name: Build CLI
-        run: cargo build --release --bin pordosol
-
-      - name: Build Compiler
-        working-directory: ./compilador-portugues
-        run: cargo build --release --bin compilador --bin interpretador
-
       - name: Cache cargo registry
         uses: actions/cache@v4
         with:
@@ -71,7 +64,7 @@ jobs:
         run: |
           $version = "${{ github.event.inputs.version }}"
           if (-not $version) { $version = "${{ github.ref_name }}" -replace "v", "" }
-          .\build-package.ps1 -Version $version -SkipTests -SkipBuild
+          .\\build-package.ps1 -Version $version -SkipTests
 
       - name: Build Windows Installer
         working-directory: ./scripts
@@ -136,13 +129,6 @@ jobs:
           path: target
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Build CLI
-        run: cargo build --release --bin pordosol
-
-      - name: Build Compiler
-        working-directory: ./compilador-portugues
-        run: cargo build --release --bin compilador --bin interpretador
-
       - name: Build Linux Package
         working-directory: ./scripts
         run: |
@@ -152,7 +138,7 @@ jobs:
             version="${version#v}"
           fi
           chmod +x build-package.sh
-          ./build-package.sh "$version" "" 1 1
+          ./build-package.sh "$version" "" 0 1
 
       - name: Upload Linux Artifacts
         uses: actions/upload-artifact@v4

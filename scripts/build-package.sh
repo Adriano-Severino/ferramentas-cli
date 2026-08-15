@@ -158,7 +158,7 @@ echo ""
 echo "=== Generating Checksums ==="
 
 CHECKSUM_FILE="$OUTPUT_DIR/pordosol-sdk-v$VERSION-linux-x64.sha256"
-sha256sum "$(basename "$TAR_FILE")" > "$CHECKSUM_FILE"
+sha256sum "$TAR_FILE" > "$CHECKSUM_FILE"
 
 CHECKSUM=$(sha256sum "$TAR_FILE" | cut -d ' ' -f 1)
 echo "Checksum: $CHECKSUM"
