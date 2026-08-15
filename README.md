@@ -156,7 +156,6 @@ ferramentas-cli/
 ## 🧩 Extensões e Ferramentas para VS Code
 
 - [Servidor de Linguagem Por do Sol (LSP)](https://github.com/Adriano-Severino/pordosol-language-server)
-- [Extensão oficial VS Code: linguagem-portugues-por-do-sol](https://github.com/Adriano-Severino/linguagem-portugues-por-do-sol)
 
 Essas extensões fornecem realce de sintaxe, auto-complete, diagnósticos e integração moderna para desenvolvimento com a linguagem Por do Sol no VS Code.
 
