@@ -25,13 +25,13 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: Adriano-Severino/compilador-portugues
-          path: ../compilador-portugues
+          path: compilador-portugues
 
       - name: Checkout sistema-padrao
         uses: actions/checkout@v4
         with:
           repository: Adriano-Severino/sistema-padrao
-          path: ../sistema-padrao
+          path: sistema-padrao
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -95,13 +95,13 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: Adriano-Severino/compilador-portugues
-          path: ../compilador-portugues
+          path: compilador-portugues
 
       - name: Checkout sistema-padrao
         uses: actions/checkout@v4
         with:
           repository: Adriano-Severino/sistema-padrao
-          path: ../sistema-padrao
+          path: sistema-padrao
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable

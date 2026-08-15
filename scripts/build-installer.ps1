@@ -7,11 +7,11 @@ param(
 $ErrorActionPreference = "Stop"
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$repoRoot = Split-Path -Parent $scriptDir
+$cliProject = Split-Path -Parent $scriptDir
 $wixConfig = Join-Path $scriptDir "wix-config.xml"
 
 if ([string]::IsNullOrWhiteSpace($OutputDir)) {
-    $OutputDir = Join-Path $repoRoot "dist"
+    $OutputDir = Join-Path $cliProject "dist"
 }
 
 $packageDir = Join-Path $OutputDir "pordosol-sdk-v$Version-windows-x64"

@@ -10,11 +10,21 @@ $ErrorActionPreference = "Stop"
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $cliProject = Split-Path -Parent $scriptDir
 $repoRoot = Split-Path -Parent $cliProject
-$compilerProject = Join-Path $repoRoot "compilador-portugues"
-$stdlibProject = Join-Path $repoRoot "sistema-padrao"
+
+# Check for dependencies in both locations (CI subdirectory or local sibling directory)
+$compilerProject = Join-Path $cliProject "compilador-portugues"
+if (-not (Test-Path -LiteralPath $compilerProject)) {
+    $compilerProject = Join-Path $repoRoot "compilador-portugues"
+}
+
+$stdlibProject = Join-Path $cliProject "sistema-padrao"
+if (-not (Test-Path -LiteralPath $stdlibProject)) {
+    $stdlibProject = Join-Path $repoRoot "sistema-padrao"
+}
 
 if ([string]::IsNullOrWhiteSpace($OutputDir)) {
-    $OutputDir = Join-Path $repoRoot "dist"
+    # Use cliProject for dist directory (works for both CI and local)
+    $OutputDir = Join-Path $cliProject "dist"
 }
 
 $packageDir = Join-Path $OutputDir "pordosol-sdk-v$Version-windows-x64"

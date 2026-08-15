@@ -8,12 +8,21 @@ SKIP_TESTS="${4:-0}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-CLI_PROJECT="$REPO_ROOT/ferramentas-cli"
-COMPILER_PROJECT="$REPO_ROOT/compilador-portugues"
-STDLIB_PROJECT="$REPO_ROOT/sistema-padrao"
+CLI_PROJECT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Check for dependencies in both locations (CI subdirectory or local sibling directory)
+COMPILER_PROJECT="$CLI_PROJECT/compilador-portugues"
+if [ ! -d "$COMPILER_PROJECT" ]; then
+    COMPILER_PROJECT="$REPO_ROOT/compilador-portugues"
+fi
+
+STDLIB_PROJECT="$CLI_PROJECT/sistema-padrao"
+if [ ! -d "$STDLIB_PROJECT" ]; then
+    STDLIB_PROJECT="$REPO_ROOT/sistema-padrao"
+fi
 
 if [ -z "$OUTPUT_DIR" ]; then
-    OUTPUT_DIR="$REPO_ROOT/dist"
+    OUTPUT_DIR="$CLI_PROJECT/dist"
 fi
 
 PACKAGE_DIR="$OUTPUT_DIR/pordosol-sdk-v$VERSION-linux-x64"
