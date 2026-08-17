@@ -86,12 +86,15 @@ pordosol doctor
 ```bash
 # Criar projeto console
 pordosol new console MeuProjeto
+pordosol novo console MeuProjeto
 
 # Criar projeto web
 pordosol new web MeuProjetoWeb
+pordosol novo web MeuProjetoWeb
 
 # Listar templates disponíveis
 pordosol new list
+pordosol novo Listar
 ```
 
 ### Compilar e Executar
@@ -101,9 +104,11 @@ cd MeuProjeto
 
 # Compilar
 pordosol build
+pordosol compilar
 
 # Executar
 pordosol run
+pordosol rodar
 
 # Compilar e executar em um comando
 pordosol run --force
