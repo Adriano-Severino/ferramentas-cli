@@ -64,15 +64,17 @@ New-Item -ItemType Directory -Force -Path $objDir | Out-Null
 
 Write-Host "=== Harvesting Directory Contents (heat.exe) ==="
 $harvestFile = Join-Path $objDir "HarvestedComponents.wxs"
-# Use -b to bind SourceDir to packageDir and -srd to suppress the root DirectoryRef.
-# -dr INSTALLFOLDER makes the harvested files land under INSTALLFOLDER.
-# -sreg suppresses SelfReg harvesting; heat.exe is 32-bit and fails with error 193
-# (ERROR_BAD_EXE_FORMAT) when it tries to load our 64-bit .exe binaries, which then
-# leaves broken <File Source="<packageDir>"/> elements in the .wxs and breaks candle.
-# -scom and -svb6 likewise avoid harvesting COM/VB6 registration entries we don't need.
-Push-Location $packageDir
+# Use a preprocessor variable (var.HarvestedPath) for the SourceDir reference.
+# heat generates <File Source="var.HarvestedPath\..."/> entries, and we pass the
+# actual packageDir as -d HarvestedPath=<path> to candle/light. This avoids the
+# CNDL0103 error caused by binding SourceDir to the packageDir itself (which makes
+# heat collapse the root into <File Source="SourceDir"/> with no file name).
+# -dr INSTALLFOLDER makes the harvested files live under INSTALLFOLDER.
+# -sreg/-scom/-svb6 keep heat.exe (a 32-bit process) from trying to load our 64-bit
+# binaries and corrupting the .wxs with broken <File Source="..."/> entries.
+Push-Location $scriptDir
 try {
-    & heat dir "." -b "$packageDir" -gg -sfrag -srd -sreg -scom -svb6 -dr INSTALLFOLDER -cg HarvestedComponents -out $harvestFile
+    & heat dir "$packageDir" -gg -sfrag -srd -sreg -scom -svb6 -dr INSTALLFOLDER -cg HarvestedComponents -var var.HarvestedPath -out $harvestFile
     if ($LASTEXITCODE -ne 0) {
         throw "Falha ao analisar o diretorio do pacote com heat.exe"
     }
@@ -80,6 +82,10 @@ try {
 finally {
     Pop-Location
 }
+
+Write-Host "--- HarvestedComponents.wxs preview (first 40 lines) ---"
+Get-Content -LiteralPath $harvestFile -TotalCount 40 | ForEach-Object { Write-Host "  $_" }
+Write-Host "----------------------------------------------------------"
 Write-Host "Directory harvest complete."
 Write-Host ""
 
@@ -92,8 +98,9 @@ Write-Host "WiX configuration prepared"
 Write-Host ""
 
 Write-Host "=== Compiling WiX Source (candle.exe) ==="
-# -b binds the SourceDir reference used by heat-generated <File Source="SourceDir\..."/> elements.
-& candle -out "$objDir\\" -b "$packageDir" -ext WixUIExtension $tempWix $harvestFile
+# -d HarvestedPath=<packageDir> resolves the var.HarvestedPath preprocessor variable
+# used in heat-generated <File Source="var.HarvestedPath\..."/> entries.
+& candle -out "$objDir\\" -dHarvestedPath="$packageDir" -ext WixUIExtension $tempWix $harvestFile
 if ($LASTEXITCODE -ne 0) {
     throw "Falha ao compilar WiX source com candle.exe"
 }
@@ -101,14 +108,15 @@ Write-Host "WiX source compiled"
 Write-Host ""
 
 Write-Host "=== Linking MSI (light.exe) ==="
-# -b $packageDir binds the harvested SourceDir references to the actual package directory.
+# -d HarvestedPath=<packageDir> resolves the var.HarvestedPath preprocessor variable
+# in the .wixobj files emitted by candle.
 # Enumerate the .wixobj files explicitly so PowerShell's wildcard expansion doesn't
 # surprise us (e.g. if there's exactly one file, the glob never expands).
 $wixObjFiles = Get-ChildItem -LiteralPath $objDir -Filter '*.wixobj' | Select-Object -ExpandProperty FullName
 if (-not $wixObjFiles -or $wixObjFiles.Count -eq 0) {
     throw "Nenhum arquivo .wixobj encontrado em $objDir"
 }
-& light -out $msiFile -b "$packageDir" -ext WixUIExtension @wixObjFiles
+& light -out $msiFile -dHarvestedPath="$packageDir" -ext WixUIExtension @wixObjFiles
 if ($LASTEXITCODE -ne 0) {
     throw "Falha ao linkar MSI com light.exe"
 }
