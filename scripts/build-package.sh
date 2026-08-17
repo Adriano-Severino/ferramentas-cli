@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Some CI environments (e.g. minimal Linux containers) don't export TMPDIR.
+# Provide a sensible default so 'set -u' doesn't blow up on later references.
+export TMPDIR="${TMPDIR:-/tmp}"
+
 VERSION="${1:-0.1.0}"
 OUTPUT_DIR="${2:-}"
 SKIP_BUILD="${3:-0}"
@@ -170,6 +174,6 @@ echo "Package: $TAR_FILE"
 echo "Checksum: $CHECKSUM_FILE"
 echo ""
 echo "To test installation:"
-echo "  tar -xzf '$TAR_FILE' -C '$TMPDIR'"
-echo "  cd '$TMPDIR/$(basename "$PACKAGE_DIR")'"
+echo "  tar -xzf '$TAR_FILE' -C '\$TMPDIR'"
+echo "  cd '\$TMPDIR/$(basename "$PACKAGE_DIR")'"
 echo "  ./install.sh"

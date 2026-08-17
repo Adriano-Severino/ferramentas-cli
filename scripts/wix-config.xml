@@ -19,15 +19,15 @@
     </Feature>
     
     <!-- Directory Structure -->
-    <Directory Id="TARGETDIR" Name="SourceDir">
+    <Directory Id="TARGETDIR">
       <Directory Id="ProgramFilesFolder">
         <Directory Id="INSTALLFOLDER" Name="PorDoSol" />
       </Directory>
-      
+
       <Directory Id="ProgramMenuFolder">
         <Directory Id="ApplicationProgramsFolder" Name="Por do Sol SDK" />
       </Directory>
-      
+
       <Directory Id="DesktopFolder" Name="Desktop" />
     </Directory>
     

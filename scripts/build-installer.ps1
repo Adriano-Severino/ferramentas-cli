@@ -64,9 +64,17 @@ New-Item -ItemType Directory -Force -Path $objDir | Out-Null
 
 Write-Host "=== Harvesting Directory Contents (heat.exe) ==="
 $harvestFile = Join-Path $objDir "HarvestedComponents.wxs"
-& heat dir $packageDir -gg -sfrag -srd -dr INSTALLFOLDER -cg HarvestedComponents -out $harvestFile
-if ($LASTEXITCODE -ne 0) {
-    throw "Falha ao analisar o diretorio do pacote com heat.exe"
+# Use -b to bind SourceDir to packageDir and -srd to suppress the root DirectoryRef.
+# -dr INSTALLFOLDER makes the harvested files land under INSTALLFOLDER.
+Push-Location $packageDir
+try {
+    & heat dir "." -b "$packageDir" -gg -sfrag -srd -dr INSTALLFOLDER -cg HarvestedComponents -out $harvestFile
+    if ($LASTEXITCODE -ne 0) {
+        throw "Falha ao analisar o diretorio do pacote com heat.exe"
+    }
+}
+finally {
+    Pop-Location
 }
 Write-Host "Directory harvest complete."
 Write-Host ""
@@ -80,7 +88,8 @@ Write-Host "WiX configuration prepared"
 Write-Host ""
 
 Write-Host "=== Compiling WiX Source (candle.exe) ==="
-& candle -out "$objDir\\" -ext WixUIExtension $tempWix $harvestFile
+# -b binds the SourceDir reference used by heat-generated <File Source="SourceDir\..."/> elements.
+& candle -out "$objDir\\" -b "$packageDir" -ext WixUIExtension $tempWix $harvestFile
 if ($LASTEXITCODE -ne 0) {
     throw "Falha ao compilar WiX source com candle.exe"
 }
@@ -88,7 +97,14 @@ Write-Host "WiX source compiled"
 Write-Host ""
 
 Write-Host "=== Linking MSI (light.exe) ==="
-& light -out $msiFile -ext WixUIExtension "$objDir\*.wixobj"
+# -b $packageDir binds the harvested SourceDir references to the actual package directory.
+# Enumerate the .wixobj files explicitly so PowerShell's wildcard expansion doesn't
+# surprise us (e.g. if there's exactly one file, the glob never expands).
+$wixObjFiles = Get-ChildItem -LiteralPath $objDir -Filter '*.wixobj' | Select-Object -ExpandProperty FullName
+if (-not $wixObjFiles -or $wixObjFiles.Count -eq 0) {
+    throw "Nenhum arquivo .wixobj encontrado em $objDir"
+}
+& light -out $msiFile -b "$packageDir" -ext WixUIExtension @wixObjFiles
 if ($LASTEXITCODE -ne 0) {
     throw "Falha ao linkar MSI com light.exe"
 }
