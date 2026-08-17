@@ -66,9 +66,13 @@ Write-Host "=== Harvesting Directory Contents (heat.exe) ==="
 $harvestFile = Join-Path $objDir "HarvestedComponents.wxs"
 # Use -b to bind SourceDir to packageDir and -srd to suppress the root DirectoryRef.
 # -dr INSTALLFOLDER makes the harvested files land under INSTALLFOLDER.
+# -sreg suppresses SelfReg harvesting; heat.exe is 32-bit and fails with error 193
+# (ERROR_BAD_EXE_FORMAT) when it tries to load our 64-bit .exe binaries, which then
+# leaves broken <File Source="<packageDir>"/> elements in the .wxs and breaks candle.
+# -scom and -svb6 likewise avoid harvesting COM/VB6 registration entries we don't need.
 Push-Location $packageDir
 try {
-    & heat dir "." -b "$packageDir" -gg -sfrag -srd -dr INSTALLFOLDER -cg HarvestedComponents -out $harvestFile
+    & heat dir "." -b "$packageDir" -gg -sfrag -srd -sreg -scom -svb6 -dr INSTALLFOLDER -cg HarvestedComponents -out $harvestFile
     if ($LASTEXITCODE -ne 0) {
         throw "Falha ao analisar o diretorio do pacote com heat.exe"
     }
