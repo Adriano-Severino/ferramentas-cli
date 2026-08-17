@@ -33,7 +33,7 @@
     
     <!-- PATH Configuration -->
     <ComponentGroup Id="PathComponents" Directory="INSTALLFOLDER">
-      <Component Id="PathEnvironment" Guid="*" KeyPath="yes">
+      <Component Id="PathEnvironment" Guid="{15E8AF31-E17D-4523-8965-538188CDE421}" KeyPath="yes">
         <Environment Id="PathEnvironment" 
                     Name="PATH" 
                     Value="[INSTALLFOLDER]bin" 
