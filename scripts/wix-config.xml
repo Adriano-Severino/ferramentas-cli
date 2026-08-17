@@ -19,7 +19,7 @@
     </Feature>
     
     <!-- Directory Structure -->
-    <Directory Id="TARGETDIR">
+    <Directory Id="TARGETDIR" Name="SourceDir">
       <Directory Id="ProgramFilesFolder">
         <Directory Id="INSTALLFOLDER" Name="PorDoSol" />
       </Directory>
