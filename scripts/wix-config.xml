@@ -16,8 +16,9 @@
     <Feature Id="ProductFeature" Title="Por do Sol SDK" Level="1">
       <ComponentGroupRef Id="HarvestedComponents" />
       <ComponentGroupRef Id="PathComponents" />
+      <ComponentGroupRef Id="StartMenuComponents" />
     </Feature>
-    
+
     <!-- Directory Structure -->
     <Directory Id="TARGETDIR" Name="SourceDir">
       <Directory Id="ProgramFilesFolder">
@@ -30,17 +31,47 @@
 
       <Directory Id="DesktopFolder" Name="Desktop" />
     </Directory>
-    
+
     <!-- PATH Configuration -->
     <ComponentGroup Id="PathComponents" Directory="INSTALLFOLDER">
       <Component Id="PathEnvironment" Guid="{15E8AF31-E17D-4523-8965-538188CDE421}" KeyPath="yes">
-        <Environment Id="PathEnvironment" 
-                    Name="PATH" 
-                    Value="[INSTALLFOLDER]bin" 
-                    Permanent="no" 
-                    Part="last" 
-                    Action="set" 
+        <Environment Id="PathEnvironment"
+                    Name="PATH"
+                    Value="[INSTALLFOLDER]bin"
+                    Permanent="no"
+                    Part="last"
+                    Action="set"
                     System="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <!-- Start Menu Shortcut.
+         The ApplicationProgramsFolder directory lives under ProgramMenuFolder
+         (a per-user profile location), so it must be referenced from a Component
+         that the installer can clean up. Adding the StartMenuShortcut component
+         here:
+           * resolves ICE64 (the directory is no longer empty in the component
+             tree, so WiX stops complaining about a missing RemoveFile entry),
+           * ensures the directory itself is removed on uninstall (via the
+             RemoveFolder element below, scoped to On=Uninstall).
+         The shortcut is intentionally lightweight: it only points at
+         [INSTALLFOLDER]bin\pordosol.exe and never assumes a README or icon
+         ships in the SDK (the SDK may ship without them). -->
+    <ComponentGroup Id="StartMenuComponents" Directory="ApplicationProgramsFolder">
+      <Component Id="StartMenuShortcut" Guid="{A1B2C3D4-E5F6-4789-A0B1-C2D3E4F5A6B7}">
+        <RegistryValue Root="HKCU"
+                       Key="Software\PorDoSolSDK"
+                       Name="installed"
+                       Type="integer"
+                       Value="1"
+                       KeyPath="yes" />
+        <Shortcut Id="StartMenuShortcutFile"
+                  Name="Por do Sol SDK"
+                  Target="[INSTALLFOLDER]bin\pordosol.exe"
+                  Description="Por do Sol SDK command line tools" />
+        <RemoveFolder Id="RemoveApplicationProgramsFolder"
+                      Directory="ApplicationProgramsFolder"
+                      On="uninstall" />
       </Component>
     </ComponentGroup>
     
