@@ -225,12 +225,11 @@ jobs:
             Consulte o guia [INSTALACAO.md](https://github.com/Adriano-Severino/ferramentas-cli/blob/main/INSTALACAO.md) para instruções detalhadas.
             
             ### Novidades
-            - Primeira versão beta do Por do Sol SDK
-            - Instalação com binários pré-compilados
-            - Suporte para Windows e Linux (x64)
-            - Templates de projeto (console, web)
-            - Ferramenta CLI completa com comandos new, build, run, doctor
-            - Comando pordosol update para verificar atualizações
+            - Correção ICE64 do WiX adicionando atalho no Menu Iniciar
+            - Correção do erro LGHT0230 no build do MSI provendo GUID estático
+            - Correção CNDL0103 do candle.exe no build do MSI
+            - Melhorias na geração de MSI e scripts de automação
+            - Correções gerais no workflow de release e CI
             
             ### Documentação
             - [INSTALACAO.md](https://github.com/Adriano-Severino/ferramentas-cli/blob/main/INSTALACAO.md) - Guia de instalação
