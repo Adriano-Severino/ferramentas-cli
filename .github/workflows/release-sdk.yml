@@ -225,10 +225,7 @@ jobs:
             Consulte o guia [INSTALACAO.md](https://github.com/Adriano-Severino/ferramentas-cli/blob/main/INSTALACAO.md) para instruções detalhadas.
             
             ### Novidades
-            - Implementado `pordosol update` / `pordosol atualizar` para atualização automática do SDK
-            - Suporte para substituição em instalações MSI no Windows (`msiexec` em background)
-            - Suporte para atualizações em modo portátil extraindo `zip`/`tar.gz` e substituindo a instalação atual (renomeando binários em uso)
-            - Centralização de artefatos oficiais pelo repositório do ferramentas-cli
+            - Correção: `pordosol doctor` agora reconhece corretamente bibliotecas padrão pré-compiladas (instalador MSI)
             
             ### Documentação
             - [INSTALACAO.md](https://github.com/Adriano-Severino/ferramentas-cli/blob/main/INSTALACAO.md) - Guia de instalação

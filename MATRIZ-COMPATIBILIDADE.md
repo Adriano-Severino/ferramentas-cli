@@ -1,6 +1,6 @@
 # Matriz De Compatibilidade Por do Sol
 
-Data de validacao: 2026-02-11
+Data de validacao: 2026-08-22
 
 ## Componentes
 

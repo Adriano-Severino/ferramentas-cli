@@ -363,7 +363,10 @@ fn candidatos_stdlib_local(raiz: &Path) -> Vec<PathBuf> {
 }
 
 fn eh_stdlib_valida(path: &Path) -> bool {
-    path.is_dir() && (path.join("Sistema.toml").is_file() || path.join("src").is_dir())
+    path.is_dir()
+        && (path.join("Sistema.toml").is_file()
+            || path.join("src").is_dir()
+            || path.join("sistema.pbl").is_file())
 }
 
 fn nome_executavel(nome: &str) -> String {
