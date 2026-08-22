@@ -225,11 +225,10 @@ jobs:
             Consulte o guia [INSTALACAO.md](https://github.com/Adriano-Severino/ferramentas-cli/blob/main/INSTALACAO.md) para instruções detalhadas.
             
             ### Novidades
-            - Correção ICE64 do WiX adicionando atalho no Menu Iniciar
-            - Correção do erro LGHT0230 no build do MSI provendo GUID estático
-            - Correção CNDL0103 do candle.exe no build do MSI
-            - Melhorias na geração de MSI e scripts de automação
-            - Correções gerais no workflow de release e CI
+            - Implementado `pordosol update` / `pordosol atualizar` para atualização automática do SDK
+            - Suporte para substituição em instalações MSI no Windows (`msiexec` em background)
+            - Suporte para atualizações em modo portátil extraindo `zip`/`tar.gz` e substituindo a instalação atual (renomeando binários em uso)
+            - Centralização de artefatos oficiais pelo repositório do ferramentas-cli
             
             ### Documentação
             - [INSTALACAO.md](https://github.com/Adriano-Severino/ferramentas-cli/blob/main/INSTALACAO.md) - Guia de instalação

@@ -8,6 +8,7 @@ mod construir;
 mod executar;
 mod novo;
 mod toolchain;
+mod atualizacao;
 
 #[derive(Parser, Debug)]
 #[command(name = "pordosol", version, about = "Ferramenta CLI do Por do Sol", long_about = None)]
@@ -588,14 +589,14 @@ fn update_cmd(check_only: bool) -> Result<()> {
     println!();
 
     // GitHub API to check for latest release
-    let api_url = "https://api.github.com/repos/Adriano-Severino/Compilador/releases/latest";
+    let api_url = "https://api.github.com/repos/Adriano-Severino/ferramentas-cli/releases/latest";
     
     match check_github_update(api_url, current_version, check_only) {
         Ok(_) => Ok(()),
         Err(e) => {
             println!("Erro ao verificar atualizacoes automaticamente: {}", e);
             println!();
-            println!("Voce pode verificar manualmente em: https://github.com/Adriano-Severino/Compilador/releases");
+            println!("Voce pode verificar manualmente em: https://github.com/Adriano-Severino/ferramentas-cli/releases");
             Ok(()) // Don't fail the command, just report the error
         }
     }
@@ -641,18 +642,70 @@ fn check_github_update(api_url: &str, current_version: &str, check_only: bool) -
         if check_only {
             println!();
             println!("Use 'pordosol update' para ver instrucoes de atualizacao.");
-            println!("Baixe manualmente de: https://github.com/Adriano-Severino/Compilador/releases");
+            println!("Baixe manualmente de: https://github.com/Adriano-Severino/ferramentas-cli/releases");
         } else {
             println!();
-            println!("Para atualizar:");
-            println!("1. Baixe a nova versao de: https://github.com/Adriano-Severino/Compilador/releases");
-            println!("2. Desinstale a versao atual");
-            println!("3. Instale a nova versao seguindo o guia INSTALACAO.md");
-            println!();
-            println!("Atualizacao automatica sera implementada em versoes futuras.");
+            println!("Iniciando atualização automática para a versão {}...", latest_version);
+            if let Err(e) = executar_atualizacao_automatica(&release) {
+                println!("Falha na atualização automática: {}", e);
+                println!("Por favor, atualize manualmente baixando em: https://github.com/Adriano-Severino/ferramentas-cli/releases");
+            }
         }
     } else {
         println!("Nao foi possivel determinar a versao mais recente.");
+    }
+
+    Ok(())
+}
+
+fn executar_atualizacao_automatica(release: &serde_json::Value) -> Result<()> {
+    let pordosol_home = std::env::var("PORDOSOL_HOME")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|_| {
+            // Fallback: tentar descobrir pela raiz do binário
+            if let Ok(exe) = std::env::current_exe() {
+                if let Some(parent) = exe.parent() { // ex: bin
+                    if let Some(home) = parent.parent() { // ex: PORDOSOL_HOME
+                        return home.to_path_buf();
+                    }
+                }
+            }
+            std::path::PathBuf::from(".")
+        });
+
+    let assets = release.get("assets").and_then(|a| a.as_array()).ok_or_else(|| anyhow::anyhow!("Nenhum asset encontrado na release"))?;
+    
+    let is_msi = atualizacao::is_msi_installation(&pordosol_home);
+    let target_ext = if cfg!(target_os = "windows") {
+        if is_msi { ".msi" } else { ".zip" }
+    } else {
+        ".tar.gz"
+    };
+
+    let mut asset_url = None;
+    let mut asset_name = String::new();
+
+    for asset in assets {
+        if let Some(name) = asset.get("name").and_then(|n| n.as_str()) {
+            if name.ends_with(target_ext) {
+                asset_url = asset.get("browser_download_url").and_then(|u| u.as_str()).map(|s| s.to_string());
+                asset_name = name.to_string();
+                break;
+            }
+        }
+    }
+
+    let download_url = asset_url.ok_or_else(|| anyhow::anyhow!("Asset {} não encontrado para esta release", target_ext))?;
+    
+    let temp_dir = tempfile::Builder::new().prefix("pordosol-download").tempdir()?;
+    let arquivo_baixado = temp_dir.path().join(&asset_name);
+
+    atualizacao::baixar_arquivo(&download_url, &arquivo_baixado)?;
+
+    if target_ext == ".msi" {
+        atualizacao::executar_atualizacao_msi(&arquivo_baixado)?;
+    } else {
+        atualizacao::atualizar_via_arquivo(&arquivo_baixado, &pordosol_home)?;
     }
 
     Ok(())
